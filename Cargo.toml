@@ -1,0 +1,8 @@
+[package]
+name = "dragons"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitflags = "2.7.0"
+eframe = "0.30.0"
