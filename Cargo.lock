@@ -611,6 +611,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "colorous"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b86f9fcf921b9f3be5b805d55ebe0184b24144bf8dbe2110c7920006836cf90"
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -781,6 +787,7 @@ name = "dragons"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.7.0",
+ "colorous",
  "eframe",
 ]
 

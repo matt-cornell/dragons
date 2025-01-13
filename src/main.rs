@@ -20,6 +20,22 @@ impl MakeStroke for egui::Stroke {
     }
 }
 
+struct GradientStroke {
+    width: f32,
+    count: usize,
+    max: usize,
+    grad: colorous::Gradient,
+}
+impl MakeStroke for GradientStroke {
+    fn stroke(&mut self) -> PathStroke {
+        let (r, g, b) = self.grad.eval_rational(std::cmp::min(self.count, self.max), self.max).into_tuple();
+        if self.count < self.max {
+            self.count += 1;
+        }
+        (self.width, egui::Color32::from_rgb(r, g, b)).into()
+    }
+}
+
 struct EguiDraw<'a, S> {
     painter: &'a egui::Painter,
     pos: egui::Pos2,
@@ -45,13 +61,40 @@ impl<S: MakeStroke> dragon::Draw for EguiDraw<'_, S> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum GradientKind {
+    Viridis,
+    Plasma,
+    Warm,
+    Cool,
+    Sinebow,
+}
+impl GradientKind {
+    fn into_colorous(&self) -> colorous::Gradient {
+        match self {
+            Self::Viridis => colorous::VIRIDIS,
+            Self::Plasma => colorous::PLASMA,
+            Self::Warm => colorous::WARM,
+            Self::Cool => colorous::COOL,
+            Self::Sinebow => colorous::SINEBOW,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Coloring {
+    None,
+    Colorous,
+}
 
 fn main() {
+    let start = dragon::Dir::Np0;
     let mut flip = false;
     let mut levy = false;
-    let mut start = dragon::Dir::Np0;
     let mut depth = 0;
     let mut curve = DragonCurve::new(start, CurveFlags::DRAGON);
+    let mut coloring = Coloring::None;
+    let mut gradient = GradientKind::Viridis;
     let res = eframe::run_simple_native("Dragon", Default::default(), move |ctx, _| {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
@@ -66,17 +109,37 @@ fn main() {
                     },
                     _ => egui::Vec2::ZERO,
                 };
-                let mut draw = EguiDraw {
-                    painter: ui.painter(),
-                    pos: rect.min + offset + egui::vec2(size * 0.25, size * 0.5),
-                    stroke: ui.style().visuals.widgets.active.fg_stroke,
-                };
                 let mut step = size / (1 << (depth / 2) + 1) as f32;
                 if depth & 1 != 0 {
                     step *= std::f32::consts::FRAC_1_SQRT_2;
                 }
-                for seg in curve.list() {
-                    seg.draw(&mut draw, step);
+                let pos = rect.min + offset + egui::vec2(size * 0.25, size * 0.5);
+                match coloring {
+                    Coloring::None => {
+                        let mut draw = EguiDraw {
+                            painter: ui.painter(),
+                            pos,
+                            stroke: ui.style().visuals.widgets.active.fg_stroke,
+                        };
+                        for seg in curve.list() {
+                            seg.draw(&mut draw, step);
+                        }
+                    }
+                    Coloring::Colorous => {
+                        let mut draw = EguiDraw {
+                            painter: ui.painter(),
+                            pos,
+                            stroke: GradientStroke {
+                                width: ui.style().visuals.widgets.active.fg_stroke.width,
+                                count: 0,
+                                max: curve.len(),
+                                grad: gradient.into_colorous()
+                            },
+                        };
+                        for seg in curve.list() {
+                            seg.draw(&mut draw, step);
+                        }
+                    }
                 }
             });
         });
@@ -98,7 +161,23 @@ fn main() {
             curve.set_depth(depth);
         });
         egui::Window::new("Display Options").show(ctx, |ui| {
-            
+            egui::ComboBox::new("Coloring", "Coloring")
+                .selected_text(format!("{coloring:?}"))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut coloring, Coloring::None, "None");
+                    ui.selectable_value(&mut coloring, Coloring::Colorous, "Colorous");
+                });
+            if coloring == Coloring::Colorous {
+                egui::ComboBox::new("Gradient", "Gradient")
+                    .selected_text(format!("{gradient:?}"))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut gradient, GradientKind::Viridis, "Viridis");
+                        ui.selectable_value(&mut gradient, GradientKind::Plasma, "Plasma");
+                        ui.selectable_value(&mut gradient, GradientKind::Warm, "Warm");
+                        ui.selectable_value(&mut gradient, GradientKind::Cool, "Cool");
+                        ui.selectable_value(&mut gradient, GradientKind::Sinebow, "Sinebow");
+                    });
+            }
         });
     });
     if let Err(err) = res {

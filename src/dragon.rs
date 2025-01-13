@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::cmp::Ordering;
 use std::collections::LinkedList;
 use std::f32::consts::FRAC_1_SQRT_2 as SCALE;
